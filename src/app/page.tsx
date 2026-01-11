@@ -216,17 +216,6 @@ export default function WarehouseSystem() {
   const handleChat = async () => {
     if (!chatInput.trim() || isProcessing) return;
 
-    // 检查 API Key 是否配置
-    const apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      setChatHistory(prev => [...prev, 
-        { role: 'user', content: chatInput },
-        { role: 'assistant', content: '❌ 系统未配置 API Key，请联系管理员在环境变量中设置 NEXT_PUBLIC_ANTHROPIC_API_KEY' }
-      ]);
-      setChatInput('');
-      return;
-    }
-
     const userMessage = chatInput;
     setChatInput('');
     setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
@@ -241,37 +230,22 @@ export default function WarehouseSystem() {
         };
       });
 
-      const apiUrl = process.env.NEXT_PUBLIC_ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
-
-      const response = await fetch(apiUrl, {
+      // 调用我们自己的后端 API（更安全）
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [
-            {
-              role: 'user',
-              content: `你是大树财经周边仓库管理助手。当前库存数据如下：
-${JSON.stringify(itemsWithCategory, null, 2)}
-
-用户说: "${userMessage}"
-
-请分析用户意图并返回JSON格式的操作指令。可能的操作类型：
-1. "query" - 查询库存，返回 {action: "query", result: "查询结果描述"}
-2. "outbound" - 出库，返回 {action: "outbound", itemId: "物品ID", quantity: 数量, recipient: "接收人", itemName: "物品名", trackingNumber: "物流单号(如果提到)"}
-3. "inbound" - 入库，返回 {action: "inbound", itemId: "物品ID或null", quantity: 数量, itemName: "物品名"}
-4. "unknown" - 无法理解，返回 {action: "unknown", message: "提示信息"}
-
-只返回JSON，不要其他文字。`
-            }
-          ]
+          messages: userMessage,
+          items: itemsWithCategory
         })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'API 调用失败');
+      }
 
       const data = await response.json();
       const responseText = data.content[0].text;
