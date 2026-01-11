@@ -20,6 +20,7 @@ export default function WarehouseSystem() {
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
   const [showItemEdit, setShowItemEdit] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [newItem, setNewItem] = useState({ categoryId: '', name: '', quantity: 0, threshold: 10 });
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'viewer', name: '' });
