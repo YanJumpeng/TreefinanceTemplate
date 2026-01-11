@@ -18,6 +18,8 @@ export default function WarehouseSystem() {
   const [showLoginForm, setShowLoginForm] = useState(true);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
+  const [showItemEdit, setShowItemEdit] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [newItem, setNewItem] = useState({ categoryId: '', name: '', quantity: 0, threshold: 10 });
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'viewer', name: '' });
@@ -26,6 +28,12 @@ export default function WarehouseSystem() {
 
   useEffect(() => {
     loadData();
+    // 恢复登录状态
+    const savedUser = localStorage.getItem('dashu-current-user');
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+      setShowLoginForm(false);
+    }
   }, []);
 
   const loadData = async () => {
@@ -104,6 +112,8 @@ export default function WarehouseSystem() {
       setCurrentUser(user);
       setShowLoginForm(false);
       setLoginForm({ username: '', password: '' });
+      // 保存登录状态
+      localStorage.setItem('dashu-current-user', JSON.stringify(user));
     } else {
       alert('用户名或密码错误');
     }
@@ -113,6 +123,8 @@ export default function WarehouseSystem() {
     setCurrentUser(null);
     setShowLoginForm(true);
     setActiveTab('dashboard');
+    // 清除登录状态
+    localStorage.removeItem('dashu-current-user');
   };
 
   const handleAddUser = () => {
@@ -348,6 +360,36 @@ export default function WarehouseSystem() {
     setShowAddForm(false);
   };
 
+  const handleEditItem = (item: any) => {
+    setEditingItem({ ...item });
+    setShowItemEdit(true);
+  };
+
+  const handleUpdateItem = () => {
+    if (!editingItem.name || editingItem.quantity < 0 || editingItem.threshold < 0) {
+      alert('请填写完整且有效的信息');
+      return;
+    }
+
+    const newItems = items.map(item => 
+      item.id === editingItem.id ? editingItem : item
+    );
+    setItems(newItems);
+    saveData(newItems);
+    setEditingItem(null);
+    setShowItemEdit(false);
+    alert('更新成功');
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    if (!confirm('确定要删除这个周边吗？')) return;
+
+    const newItems = items.filter(item => item.id !== itemId);
+    setItems(newItems);
+    saveData(newItems);
+    alert('删除成功');
+  };
+
   const lowStockItems = items.filter(item => item.quantity <= item.threshold);
   const filteredItems = items.filter(item => {
     const category = categories.find(c => c.id === item.categoryId);
@@ -396,15 +438,6 @@ export default function WarehouseSystem() {
             >
               登录
             </button>
-          </div>
-
-          <div className="mt-6 p-4 bg-slate-50 rounded-lg text-sm">
-            <div className="font-semibold text-slate-700 mb-2">测试账号：</div>
-            <div className="space-y-1 text-slate-600">
-              <div>管理员: admin / admin123</div>
-              <div>操作员: operator / op123</div>
-              <div>查看员: viewer / view123</div>
-            </div>
           </div>
         </div>
       </div>
@@ -894,7 +927,27 @@ export default function WarehouseSystem() {
                   {/* 该类目下的周边产品卡片 */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {categoryItems.map(item => (
-                      <div key={item.id} className="bg-white p-5 rounded-lg shadow-md hover:shadow-xl transition-all border-2 border-slate-200 hover:border-slate-300">
+                      <div key={item.id} className="bg-white p-5 rounded-lg shadow-md hover:shadow-xl transition-all border-2 border-slate-200 hover:border-slate-300 relative group">
+                        {/* 管理员操作按钮 */}
+                        {currentUser?.role === 'admin' && (
+                          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                            <button
+                              onClick={() => handleEditItem(item)}
+                              className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-md"
+                              title="编辑"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-md"
+                              title="删除"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
+                        
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3 flex-1">
                             <div className={`w-12 h-12 ${badgeColors[color]} rounded-lg flex items-center justify-center flex-shrink-0`}>
@@ -946,6 +999,91 @@ export default function WarehouseSystem() {
               <div className="text-center py-12 bg-white rounded-lg shadow">
                 <Package size={48} className="mx-auto text-slate-300 mb-4" />
                 <p className="text-slate-500">没有找到相关周边</p>
+              </div>
+            )}
+
+            {/* 编辑周边弹窗 */}
+            {showItemEdit && editingItem && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-slate-800">编辑周边信息</h3>
+                    <button
+                      onClick={() => {
+                        setShowItemEdit(false);
+                        setEditingItem(null);
+                      }}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">周边名称</label>
+                      <input
+                        type="text"
+                        value={editingItem.name}
+                        onChange={(e) => setEditingItem({...editingItem, name: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">类目</label>
+                      <select
+                        value={editingItem.categoryId}
+                        onChange={(e) => setEditingItem({...editingItem, categoryId: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
+                      >
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">当前库存</label>
+                      <input
+                        type="number"
+                        value={editingItem.quantity}
+                        onChange={(e) => setEditingItem({...editingItem, quantity: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">预警阈值</label>
+                      <input
+                        type="number"
+                        value={editingItem.threshold}
+                        onChange={(e) => setEditingItem({...editingItem, threshold: parseInt(e.target.value) || 10})}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={handleUpdateItem}
+                      className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all"
+                    >
+                      保存修改
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowItemEdit(false);
+                        setEditingItem(null);
+                      }}
+                      className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium transition-all"
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
