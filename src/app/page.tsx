@@ -216,6 +216,17 @@ export default function WarehouseSystem() {
   const handleChat = async () => {
     if (!chatInput.trim() || isProcessing) return;
 
+    // 检查 API Key 是否配置
+    const apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      setChatHistory(prev => [...prev, 
+        { role: 'user', content: chatInput },
+        { role: 'assistant', content: '❌ 系统未配置 API Key，请联系管理员在环境变量中设置 NEXT_PUBLIC_ANTHROPIC_API_KEY' }
+      ]);
+      setChatInput('');
+      return;
+    }
+
     const userMessage = chatInput;
     setChatInput('');
     setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
@@ -230,10 +241,14 @@ export default function WarehouseSystem() {
         };
       });
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const apiUrl = process.env.NEXT_PUBLIC_ANTHROPIC_API_URL || 'https://api.anthropic.com/v1/messages';
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
