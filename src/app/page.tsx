@@ -30,17 +30,13 @@ export default function WarehouseSystem() {
 
   const loadData = async () => {
     try {
-      // @ts-ignore
-      const itemsResult = await window.storage?.get('dashu-items');
-      // @ts-ignore
-      const categoriesResult = await window.storage?.get('dashu-categories');
-      // @ts-ignore
-      const recordsResult = await window.storage?.get('dashu-records');
-      // @ts-ignore
-      const usersResult = await window.storage?.get('dashu-users');
+      const itemsData = localStorage.getItem('dashu-items');
+      const categoriesData = localStorage.getItem('dashu-categories');
+      const recordsData = localStorage.getItem('dashu-records');
+      const usersData = localStorage.getItem('dashu-users');
       
-      if (categoriesResult) {
-        setCategories(JSON.parse(categoriesResult.value));
+      if (categoriesData) {
+        setCategories(JSON.parse(categoriesData));
       } else {
         const defaultCategories = [
           { id: '1', name: '大树财经周边套装', description: '包含衣服、水杯、洗漱包' },
@@ -48,12 +44,11 @@ export default function WarehouseSystem() {
           { id: '3', name: 'OracleX项目方周边', description: 'OracleX项目方定制周边套装' }
         ];
         setCategories(defaultCategories);
-        // @ts-ignore
-        await window.storage?.set('dashu-categories', JSON.stringify(defaultCategories));
+        localStorage.setItem('dashu-categories', JSON.stringify(defaultCategories));
       }
 
-      if (itemsResult) {
-        setItems(JSON.parse(itemsResult.value));
+      if (itemsData) {
+        setItems(JSON.parse(itemsData));
       } else {
         const sampleItems = [
           { id: '1', categoryId: '1', name: '大树财经T恤', quantity: 50, threshold: 20 },
@@ -64,16 +59,15 @@ export default function WarehouseSystem() {
           { id: '6', categoryId: '3', name: 'OracleX周边套装', quantity: 20, threshold: 8 },
         ];
         setItems(sampleItems);
-        // @ts-ignore
-        await window.storage?.set('dashu-items', JSON.stringify(sampleItems));
+        localStorage.setItem('dashu-items', JSON.stringify(sampleItems));
       }
       
-      if (recordsResult) {
-        setRecords(JSON.parse(recordsResult.value));
+      if (recordsData) {
+        setRecords(JSON.parse(recordsData));
       }
 
-      if (usersResult) {
-        setUsers(JSON.parse(usersResult.value));
+      if (usersData) {
+        setUsers(JSON.parse(usersData));
       } else {
         const defaultUsers = [
           { id: '1', username: 'admin', password: 'admin123', role: 'admin', name: '管理员' },
@@ -81,27 +75,23 @@ export default function WarehouseSystem() {
           { id: '3', username: 'viewer', password: 'view123', role: 'viewer', name: '查看员' }
         ];
         setUsers(defaultUsers);
-        // @ts-ignore
-        await window.storage?.set('dashu-users', JSON.stringify(defaultUsers));
+        localStorage.setItem('dashu-users', JSON.stringify(defaultUsers));
       }
     } catch (error) {
       console.error('加载数据失败:', error);
     }
   };
 
-  const saveData = async (newItems?: any[], newRecords?: any[], newCategories?: any[]) => {
+  const saveData = (newItems?: any[], newRecords?: any[], newCategories?: any[]) => {
     try {
       if (newItems) {
-        // @ts-ignore
-        await window.storage?.set('dashu-items', JSON.stringify(newItems));
+        localStorage.setItem('dashu-items', JSON.stringify(newItems));
       }
       if (newRecords) {
-        // @ts-ignore
-        await window.storage?.set('dashu-records', JSON.stringify(newRecords));
+        localStorage.setItem('dashu-records', JSON.stringify(newRecords));
       }
       if (newCategories) {
-        // @ts-ignore
-        await window.storage?.set('dashu-categories', JSON.stringify(newCategories));
+        localStorage.setItem('dashu-categories', JSON.stringify(newCategories));
       }
     } catch (error) {
       console.error('保存数据失败:', error);
@@ -125,7 +115,7 @@ export default function WarehouseSystem() {
     setActiveTab('dashboard');
   };
 
-  const handleAddUser = async () => {
+  const handleAddUser = () => {
     if (!newUser.username || !newUser.password || !newUser.name) {
       alert('请填写完整信息');
       return;
@@ -138,13 +128,12 @@ export default function WarehouseSystem() {
 
     const newUsers = [...users, user];
     setUsers(newUsers);
-    // @ts-ignore
-    await window.storage?.set('dashu-users', JSON.stringify(newUsers));
+    localStorage.setItem('dashu-users', JSON.stringify(newUsers));
     setNewUser({ username: '', password: '', role: 'viewer', name: '' });
     alert('用户添加成功');
   };
 
-  const handleAddCategory = async () => {
+  const handleAddCategory = () => {
     if (!newCategory.name) {
       alert('请填写类目名称');
       return;
@@ -157,12 +146,12 @@ export default function WarehouseSystem() {
 
     const newCategories = [...categories, category];
     setCategories(newCategories);
-    await saveData(undefined, undefined, newCategories);
+    saveData(undefined, undefined, newCategories);
     setNewCategory({ name: '', description: '' });
     alert('类目添加成功');
   };
 
-  const handleUpdateCategory = async () => {
+  const handleUpdateCategory = () => {
     if (!editingCategory?.name) {
       alert('请填写类目名称');
       return;
@@ -172,12 +161,12 @@ export default function WarehouseSystem() {
       cat.id === editingCategory.id ? editingCategory : cat
     );
     setCategories(newCategories);
-    await saveData(undefined, undefined, newCategories);
+    saveData(undefined, undefined, newCategories);
     setEditingCategory(null);
     alert('类目更新成功');
   };
 
-  const handleDeleteCategory = async (categoryId: string) => {
+  const handleDeleteCategory = (categoryId: string) => {
     const hasItems = items.some(item => item.categoryId === categoryId);
     if (hasItems) {
       alert('该类目下还有周边物品，无法删除！请先删除或转移该类目下的所有物品。');
@@ -188,7 +177,7 @@ export default function WarehouseSystem() {
 
     const newCategories = categories.filter(cat => cat.id !== categoryId);
     setCategories(newCategories);
-    await saveData(undefined, undefined, newCategories);
+    saveData(undefined, undefined, newCategories);
     alert('类目删除成功');
   };
 
@@ -230,7 +219,7 @@ export default function WarehouseSystem() {
         };
       });
 
-      // 调用我们自己的后端 API（更安全）
+      // 调用我们自己的后端 API
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -289,7 +278,7 @@ export default function WarehouseSystem() {
             }
             setItems(newItems);
             setRecords(newRecords);
-            await saveData(newItems, newRecords);
+            saveData(newItems, newRecords);
           } else {
             aiResponse = `库存不足或未找到该物品`;
           }
@@ -315,7 +304,7 @@ export default function WarehouseSystem() {
             aiResponse = `已入库 ${instruction.quantity} 个 ${instruction.itemName}。当前库存：${item.quantity} 个`;
             setItems(newItems);
             setRecords(newRecords);
-            await saveData(newItems, newRecords);
+            saveData(newItems, newRecords);
           } else {
             aiResponse = '未找到该物品，请先在库存管理中添加';
           }
@@ -325,17 +314,18 @@ export default function WarehouseSystem() {
       }
 
       setChatHistory(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('AI 调用错误:', error);
       setChatHistory(prev => [...prev, { 
         role: 'assistant', 
-        content: '处理出错了，请重试' 
+        content: `处理出错了：${error.message || '请重试'}` 
       }]);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleAddItem = async () => {
+  const handleAddItem = () => {
     if (currentUser?.role === 'viewer') {
       alert('您没有操作权限');
       return;
@@ -353,7 +343,7 @@ export default function WarehouseSystem() {
 
     const newItems = [...items, item];
     setItems(newItems);
-    await saveData(newItems);
+    saveData(newItems);
     setNewItem({ categoryId: '', name: '', quantity: 0, threshold: 10 });
     setShowAddForm(false);
   };
@@ -472,7 +462,6 @@ export default function WarehouseSystem() {
           </div>
         </div>
 
-        {/* 类目管理面板 */}
         {showCategoryManagement && currentUser.role === 'admin' && (
           <div className="mb-6 bg-white p-6 rounded-lg shadow-lg border-2 border-orange-200">
             <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -587,7 +576,6 @@ export default function WarehouseSystem() {
           </div>
         )}
 
-        {/* 用户管理面板 */}
         {showUserManagement && currentUser.role === 'admin' && (
           <div className="mb-6 bg-white p-6 rounded-lg shadow-lg border-2 border-purple-200">
             <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
