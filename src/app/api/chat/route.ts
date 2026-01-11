@@ -1,11 +1,11 @@
 // 在项目中创建: app/api/chat/route.ts
-// 这是一个服务器端 API，API Key 不会暴露给前端
+// 使用 APIHK.AI 中转 API
 
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    // 从服务器环境变量读取 API Key（注意：不使用 NEXT_PUBLIC_ 前缀）
+    // 从服务器环境变量读取 API Key
     const apiKey = process.env.ANTHROPIC_API_KEY;
     
     if (!apiKey) {
@@ -19,12 +19,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { messages, items } = body;
 
-    // 调用 Anthropic API
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // 调用 APIHK.AI 的 API（注意：使用 apihk.ai 的端点）
+    const response = await fetch('https://apihk.ai/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
@@ -52,8 +52,14 @@ ${JSON.stringify(items, null, 2)}
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('APIHK API 错误详情:', errorData);
       return NextResponse.json(
-        { error: 'Anthropic API 调用失败', details: errorData },
+        { 
+          error: 'API 调用失败', 
+          details: errorData,
+          status: response.status,
+          statusText: response.statusText
+        },
         { status: response.status }
       );
     }
@@ -68,16 +74,4 @@ ${JSON.stringify(items, null, 2)}
       { status: 500 }
     );
   }
-}
-
-// 可选：添加 CORS 支持
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
 }
