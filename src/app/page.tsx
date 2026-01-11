@@ -684,6 +684,45 @@ export default function WarehouseSystem() {
 
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
+            {/* 统计概览卡片 */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm opacity-90">总库存</div>
+                  <Package size={24} className="opacity-75" />
+                </div>
+                <div className="text-3xl font-bold">{items.reduce((sum, item) => sum + item.quantity, 0)}</div>
+                <div className="text-xs opacity-75 mt-1">件周边产品</div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm opacity-90">周边种类</div>
+                  <List size={24} className="opacity-75" />
+                </div>
+                <div className="text-3xl font-bold">{items.length}</div>
+                <div className="text-xs opacity-75 mt-1">种产品</div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm opacity-90">类目数量</div>
+                  <FolderTree size={24} className="opacity-75" />
+                </div>
+                <div className="text-3xl font-bold">{categories.length}</div>
+                <div className="text-xs opacity-75 mt-1">个类目</div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm opacity-90">库存预警</div>
+                  <AlertTriangle size={24} className="opacity-75" />
+                </div>
+                <div className="text-3xl font-bold">{lowStockItems.length}</div>
+                <div className="text-xs opacity-75 mt-1">件需要补货</div>
+              </div>
+            </div>
+
             {lowStockItems.length > 0 && (
               <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
@@ -779,46 +818,136 @@ export default function WarehouseSystem() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredItems.map(item => {
-                const category = categories.find(c => c.id === item.categoryId);
-                return (
-                  <div key={item.id} className="bg-white p-5 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-slate-200">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Package className="text-green-600" size={24} />
+            {/* 按类目分组展示 */}
+            {categories.map(category => {
+              const categoryItems = filteredItems.filter(item => item.categoryId === category.id);
+              if (categoryItems.length === 0) return null;
+
+              const categoryTotal = categoryItems.reduce((sum, item) => sum + item.quantity, 0);
+              const categoryLowStock = categoryItems.filter(item => item.quantity <= item.threshold).length;
+
+              // 根据类目设置不同的颜色主题
+              const getCategoryColor = (categoryName: string) => {
+                if (categoryName.includes('大树财经')) return 'green';
+                if (categoryName.includes('德州扑克')) return 'purple';
+                if (categoryName.includes('OracleX')) return 'blue';
+                return 'slate';
+              };
+
+              const color = getCategoryColor(category.name);
+              const colorClasses = {
+                green: 'bg-green-50 border-green-200',
+                purple: 'bg-purple-50 border-purple-200',
+                blue: 'bg-blue-50 border-blue-200',
+                slate: 'bg-slate-50 border-slate-200'
+              };
+
+              const badgeColors = {
+                green: 'bg-green-100 text-green-800',
+                purple: 'bg-purple-100 text-purple-800',
+                blue: 'bg-blue-100 text-blue-800',
+                slate: 'bg-slate-100 text-slate-800'
+              };
+
+              const iconColors = {
+                green: 'text-green-600',
+                purple: 'text-purple-600',
+                blue: 'text-blue-600',
+                slate: 'text-slate-600'
+              };
+
+              return (
+                <div key={category.id} className="space-y-4">
+                  {/* 类目标题卡片 */}
+                  <div className={`${colorClasses[color]} border-2 rounded-xl p-4 shadow-sm`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 ${badgeColors[color]} rounded-lg flex items-center justify-center`}>
+                          <FolderTree className={iconColors[color]} size={24} />
+                        </div>
                         <div>
-                          <div className="font-bold text-slate-800">{item.name}</div>
-                          <div className="text-sm text-slate-500">{category?.name || '未分类'}</div>
+                          <h3 className="text-xl font-bold text-slate-800">{category.name}</h3>
+                          {category.description && (
+                            <p className="text-sm text-slate-600">{category.description}</p>
+                          )}
                         </div>
                       </div>
-                      {item.quantity <= item.threshold && (
-                        <TrendingDown className="text-red-500" size={20} />
-                      )}
-                    </div>
-                    <div className="mb-2">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-600">库存</span>
-                        <span className={`font-bold ${item.quantity <= item.threshold ? 'text-red-600' : 'text-green-600'}`}>
-                          {item.quantity} 个
-                        </span>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-slate-800">{categoryTotal}</div>
+                          <div className="text-xs text-slate-600">总库存</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-slate-800">{categoryItems.length}</div>
+                          <div className="text-xs text-slate-600">种类</div>
+                        </div>
+                        {categoryLowStock > 0 && (
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-red-600">{categoryLowStock}</div>
+                            <div className="text-xs text-red-600">预警</div>
+                          </div>
+                        )}
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full transition-all ${
-                            item.quantity <= item.threshold ? 'bg-red-500' : 'bg-green-600'
-                          }`}
-                          style={{ width: `${Math.min((item.quantity / (item.threshold * 2)) * 100, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      预警线: {item.threshold} 个
                     </div>
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* 该类目下的周边产品卡片 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {categoryItems.map(item => (
+                      <div key={item.id} className="bg-white p-5 rounded-lg shadow-md hover:shadow-xl transition-all border-2 border-slate-200 hover:border-slate-300">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`w-12 h-12 ${badgeColors[color]} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                              <Package className={iconColors[color]} size={20} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-slate-800 truncate">{item.name}</div>
+                              <div className={`text-xs ${badgeColors[color]} px-2 py-1 rounded-full inline-block mt-1`}>
+                                {category.name}
+                              </div>
+                            </div>
+                          </div>
+                          {item.quantity <= item.threshold && (
+                            <div className="flex-shrink-0">
+                              <TrendingDown className="text-red-500" size={20} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="mb-3">
+                          <div className="flex justify-between text-sm mb-2">
+                            <span className="text-slate-600 font-medium">当前库存</span>
+                            <span className={`font-bold text-lg ${item.quantity <= item.threshold ? 'text-red-600' : 'text-green-600'}`}>
+                              {item.quantity} 个
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-3">
+                            <div
+                              className={`h-3 rounded-full transition-all ${
+                                item.quantity <= item.threshold ? 'bg-red-500' : 'bg-green-600'
+                              }`}
+                              style={{ width: `${Math.min((item.quantity / (item.threshold * 2)) * 100, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500">预警线: {item.threshold} 个</span>
+                          {item.quantity <= item.threshold && (
+                            <span className="text-red-600 font-semibold">⚠️ 需要补货</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredItems.length === 0 && (
+              <div className="text-center py-12 bg-white rounded-lg shadow">
+                <Package size={48} className="mx-auto text-slate-300 mb-4" />
+                <p className="text-slate-500">没有找到相关周边</p>
+              </div>
+            )}
           </div>
         )}
 
