@@ -391,6 +391,78 @@ export default function WarehouseSystem() {
     alert('删除成功');
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEditing: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 检查文件大小（限制为 2MB）
+    if (file.size > 2 * 1024 * 1024) {
+      alert('图片大小不能超过 2MB');
+      return;
+    }
+
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+      alert('请上传图片文件');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      if (isEditing && editingItem) {
+        setEditingItem({...editingItem, image: base64String});
+      } else {
+        setNewItem({...newItem, image: base64String});
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 计算统计数据
+  const getStatistics = () => {
+    const totalStock = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalValue = items.length;
+    const lowStockCount = lowStockItems.length;
+    
+    // 按类目统计
+    const categoryStats = categories.map(cat => {
+      const catItems = items.filter(item => item.categoryId === cat.id);
+      return {
+        name: cat.name,
+        count: catItems.length,
+        total: catItems.reduce((sum, item) => sum + item.quantity, 0),
+        lowStock: catItems.filter(item => item.quantity <= item.threshold).length
+      };
+    });
+
+    // 最近出入库记录统计
+    const recentRecords = records.slice(0, 10);
+    const outboundCount = records.filter(r => r.type === 'outbound').length;
+    const inboundCount = records.filter(r => r.type === 'inbound').length;
+
+    // 热门周边（出库次数最多）
+    const itemOutboundCount: Record<string, number> = {};
+    records.filter(r => r.type === 'outbound').forEach(r => {
+      itemOutboundCount[r.itemName] = (itemOutboundCount[r.itemName] || 0) + r.quantity;
+    });
+    const topItems = Object.entries(itemOutboundCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    return {
+      totalStock,
+      totalValue,
+      lowStockCount,
+      categoryStats,
+      recentRecords,
+      outboundCount,
+      inboundCount,
+      topItems
+    };
+  };
+
   const lowStockItems = items.filter(item => item.quantity <= item.threshold);
   const filteredItems = items.filter(item => {
     const category = categories.find(c => c.id === item.categoryId);
@@ -797,6 +869,13 @@ export default function WarehouseSystem() {
                   新增周边
                 </button>
               )}
+              <button
+                onClick={() => setShowStatsModal(true)}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 shadow-md transition-all"
+              >
+                <BarChart3 size={20} />
+                数据统计
+              </button>
             </div>
 
             {showAddForm && canOperate && (
@@ -834,6 +913,28 @@ export default function WarehouseSystem() {
                     onChange={(e) => setNewItem({...newItem, threshold: parseInt(e.target.value) || 10})}
                     className="px-4 py-2 border rounded-lg"
                   />
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">周边图片（选填，最大2MB）</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, false)}
+                      className="w-full px-4 py-2 border rounded-lg"
+                    />
+                    {newItem.image && (
+                      <div className="mt-2 relative inline-block">
+                        <img src={newItem.image} alt="预览" className="w-32 h-32 object-cover rounded-lg border" />
+                        <button
+                          onClick={() => setNewItem({...newItem, image: undefined})}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <button
@@ -843,7 +944,10 @@ export default function WarehouseSystem() {
                     确认添加
                   </button>
                   <button
-                    onClick={() => setShowAddForm(false)}
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewItem({ categoryId: '', name: '', quantity: 0, threshold: 10 });
+                    }}
                     className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
                   >
                     取消
@@ -951,9 +1055,17 @@ export default function WarehouseSystem() {
                         
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3 flex-1">
-                            <div className={`w-12 h-12 ${badgeColors[color]} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                              <Package className={iconColors[color]} size={20} />
-                            </div>
+                            {item.image ? (
+                              <img 
+                                src={item.image} 
+                                alt={item.name}
+                                className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                              />
+                            ) : (
+                              <div className={`w-12 h-12 ${badgeColors[color]} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                                <Package className={iconColors[color]} size={20} />
+                              </div>
+                            )}
                             <div className="flex-1 min-w-0">
                               <div className="font-bold text-slate-800 truncate">{item.name}</div>
                               <div className={`text-xs ${badgeColors[color]} px-2 py-1 rounded-full inline-block mt-1`}>
@@ -1065,6 +1177,29 @@ export default function WarehouseSystem() {
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
                       />
                     </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">周边图片（选填）</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e, true)}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg"
+                      />
+                      {editingItem.image && (
+                        <div className="mt-2 relative inline-block">
+                          <img src={editingItem.image} alt="预览" className="w-32 h-32 object-cover rounded-lg border" />
+                          <button
+                            onClick={() => setEditingItem({...editingItem, image: undefined})}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex gap-3 mt-6">
@@ -1082,6 +1217,165 @@ export default function WarehouseSystem() {
                       className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium transition-all"
                     >
                       取消
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 数据统计弹窗 */}
+            {showStatsModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                      <BarChart3 size={28} className="text-purple-600" />
+                      数据统计分析
+                    </h3>
+                    <button
+                      onClick={() => setShowStatsModal(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {(() => {
+                    const stats = getStatistics();
+                    return (
+                      <div className="space-y-6">
+                        {/* 总览统计 */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-xl">
+                            <div className="text-sm opacity-90">总库存</div>
+                            <div className="text-3xl font-bold mt-1">{stats.totalStock}</div>
+                            <div className="text-xs opacity-75 mt-1">件产品</div>
+                          </div>
+                          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 rounded-xl">
+                            <div className="text-sm opacity-90">周边种类</div>
+                            <div className="text-3xl font-bold mt-1">{stats.totalValue}</div>
+                            <div className="text-xs opacity-75 mt-1">种产品</div>
+                          </div>
+                          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-4 rounded-xl">
+                            <div className="text-sm opacity-90">总出库</div>
+                            <div className="text-3xl font-bold mt-1">{stats.outboundCount}</div>
+                            <div className="text-xs opacity-75 mt-1">次记录</div>
+                          </div>
+                          <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 rounded-xl">
+                            <div className="text-sm opacity-90">总入库</div>
+                            <div className="text-3xl font-bold mt-1">{stats.inboundCount}</div>
+                            <div className="text-xs opacity-75 mt-1">次记录</div>
+                          </div>
+                        </div>
+
+                        {/* 类目统计 */}
+                        <div className="bg-white border-2 border-slate-200 rounded-xl p-4">
+                          <h4 className="font-bold text-lg mb-4 text-slate-800">各类目库存分布</h4>
+                          <div className="space-y-3">
+                            {stats.categoryStats.map((cat, idx) => {
+                              const maxTotal = Math.max(...stats.categoryStats.map(c => c.total));
+                              const percentage = (cat.total / maxTotal) * 100;
+                              const colors = ['bg-green-500', 'bg-purple-500', 'bg-blue-500', 'bg-orange-500'];
+                              return (
+                                <div key={idx} className="space-y-1">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="font-semibold text-slate-700">{cat.name}</span>
+                                    <span className="text-slate-600">{cat.total} 件 · {cat.count} 种</span>
+                                  </div>
+                                  <div className="w-full bg-slate-200 rounded-full h-4">
+                                    <div 
+                                      className={`${colors[idx % colors.length]} h-4 rounded-full flex items-center justify-end pr-2 transition-all`}
+                                      style={{ width: `${percentage}%` }}
+                                    >
+                                      {cat.lowStock > 0 && (
+                                        <span className="text-xs text-white font-semibold">⚠️{cat.lowStock}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 热门周边 TOP5 */}
+                        {stats.topItems.length > 0 && (
+                          <div className="bg-white border-2 border-slate-200 rounded-xl p-4">
+                            <h4 className="font-bold text-lg mb-4 text-slate-800">热门周边 TOP5（按出库量）</h4>
+                            <div className="space-y-2">
+                              {stats.topItems.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${
+                                    idx === 0 ? 'bg-yellow-500' :
+                                    idx === 1 ? 'bg-gray-400' :
+                                    idx === 2 ? 'bg-orange-600' :
+                                    'bg-slate-400'
+                                  }`}>
+                                    {idx + 1}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="font-semibold text-slate-800">{item.name}</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-lg font-bold text-purple-600">{item.count}</div>
+                                    <div className="text-xs text-slate-500">已出库</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 最近操作记录 */}
+                        <div className="bg-white border-2 border-slate-200 rounded-xl p-4">
+                          <h4 className="font-bold text-lg mb-4 text-slate-800">最近操作记录</h4>
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {stats.recentRecords.length === 0 ? (
+                              <div className="text-center text-slate-400 py-8">暂无操作记录</div>
+                            ) : (
+                              stats.recentRecords.map((record: any) => (
+                                <div key={record.id} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg text-sm">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                    record.type === 'outbound' ? 'bg-red-100' : 'bg-green-100'
+                                  }`}>
+                                    <TrendingDown className={record.type === 'outbound' ? 'text-red-600' : 'text-green-600 rotate-180'} size={16} />
+                                  </div>
+                                  <div className="flex-1">
+                                    <span className="font-semibold">{record.itemName}</span>
+                                    <span className="text-slate-600"> · {record.quantity} 件</span>
+                                    {record.recipient && <span className="text-slate-500"> · {record.recipient}</span>}
+                                  </div>
+                                  <div className="text-xs text-slate-500">{record.time}</div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 库存预警汇总 */}
+                        {stats.lowStockCount > 0 && (
+                          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                            <h4 className="font-bold text-lg mb-3 text-red-800 flex items-center gap-2">
+                              <AlertTriangle size={20} />
+                              库存预警汇总
+                            </h4>
+                            <div className="text-red-700">
+                              当前有 <span className="text-2xl font-bold mx-1">{stats.lowStockCount}</span> 件周边库存不足，需要及时补货！
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => setShowStatsModal(false)}
+                      className="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium transition-all"
+                    >
+                      关闭
                     </button>
                   </div>
                 </div>
